@@ -1,88 +1,92 @@
-require('buster').spec.expose();
-var expect = require('buster').expect;
-var fakes = require('./helper/fakes');
+/** @license MIT License (c) copyright 2016 original author or authors */
 
-var mws = require('../most-w3msg');
+import {describe, it} from 'mocha'
+import assert from 'assert'
+import sinon from 'sinon'
 
-var sentinel = { value: 'sentinel' };
+import * as fakes from './helper/fakes'
+import * as mostW3msg from '../src/most-w3msg'
 
-describe('fromWebSocket', function() {
-	it('should contain messages received by WebSocket', function() {
-		var ws = new fakes.FakeWebSocket();
+const sentinel = { value: 'sentinel' }
 
-		var s = mws.fromWebSocket(ws, ws.close.bind(ws));
-		var spy = this.spy();
+describe('most-w3msg', () => {
+  describe('fromWebSocket', () => {
+    it('should contain messages received by WebSocket', done => {
+      const observer = sinon.spy()
+      const ws = new fakes.FakeWebSocket()
+      const s = mostW3msg.fromWebSocket(ws, ws.close.bind(ws))
 
-		setTimeout(function() {
-			ws.send(sentinel);
-		}, 0);
+      setTimeout(() => ws.send(sentinel), 0)
 
-		return s.take(1).observe(spy).then(function() {
-			expect(spy).toHaveBeenCalledOnceWith(sentinel);
-		});
-	});
+      return s.take(1).observe(observer).then(() => {
+        assert.strictEqual(observer.callCount, 1)
+        assert(observer.calledWith(sentinel))
+        done()
+      })
+    })
 
-	it('should call disposer when stream ends', function() {
-		var ws = new fakes.FakeWebSocket();
+    it('should call disposer when stream ends', done => {
+      const observer = sinon.spy()
+      const ws = new fakes.FakeWebSocket()
+      const s = mostW3msg.fromWebSocket(ws, observer)
 
-		var spy = this.spy();
-		var s = mws.fromWebSocket(ws, spy);
+      setTimeout(() => {
+        ws.send(sentinel)
+      }, 0)
 
-		setTimeout(function() {
-			ws.send(sentinel);
-		}, 0);
+      return s.take(1).drain().then(() => {
+        assert.strictEqual(observer.callCount, 1)
+        done()
+      })
+    })
+  })
 
-		return s.take(1).drain().then(function() {
-			expect(spy).toHaveBeenCalledOnce();
-		});
-	});
-});
+  describe('fromEventSource', () => {
+    it('should contain messages received by EventSource', done => {
+      const observer = sinon.spy()
+      const es = new fakes.FakeEventSource()
+      const s = mostW3msg.fromEventSource(es, es.close.bind(es))
 
-describe('fromEventSource', function() {
-	it('should contain messages received by EventSource', function() {
-		var es = new fakes.FakeEventSource();
+      setTimeout(() => {
+        es.emit('message', sentinel)
+      }, 0)
 
-		var s = mws.fromEventSource(es, es.close.bind(es));
-		var spy = this.spy();
+      return s.take(1).observe(observer).then(() => {
+        assert.strictEqual(observer.callCount, 1)
+        assert(observer.calledWith(sentinel))
+        done()
+      })
+    })
 
-		setTimeout(function() {
-			es.emit('message', sentinel);
-		}, 0);
+    it('should call disposer when stream ends', done => {
+      const observer = sinon.spy()
+      const es = new fakes.FakeEventSource()
+      const s = mostW3msg.fromEventSource(es, observer)
 
-		return s.take(1).observe(spy).then(function() {
-			expect(spy).toHaveBeenCalledOnceWith(sentinel);
-		});
-	});
+      setTimeout(() => {
+        es.emit('message', sentinel)
+      }, 0)
 
-	it('should call disposer when stream ends', function() {
-		var es = new fakes.FakeEventSource();
+      return s.take(1).drain().then(() => {
+        assert.strictEqual(observer.callCount, 1)
+        done()
+      })
+    })
+  })
 
-		var spy = this.spy();
-		var s = mws.fromEventSource(es, spy);
+  describe('fromEventSourceOn', () => {
+    it('should contain events received by EventSource', done => {
+      const observer = sinon.spy()
+      const es = new fakes.FakeEventSource()
+      const s = mostW3msg.fromEventSourceOn('test', es, es.close.bind(es))
 
-		setTimeout(function() {
-			es.emit('message', sentinel);
-		}, 0);
+      setTimeout(() => es.emit('test', sentinel), 0)
 
-		return s.take(1).drain().then(function() {
-			expect(spy).toHaveBeenCalledOnce();
-		});
-	});
-});
-
-describe('fromEventSourceOn', function() {
-	it('should contain events received by EventSource', function() {
-		var es = new fakes.FakeEventSource();
-
-		var s = mws.fromEventSourceOn('test', es, es.close.bind(es));
-		var spy = this.spy();
-
-		setTimeout(function() {
-			es.emit('test', sentinel);
-		}, 0);
-
-		return s.take(1).observe(spy).then(function() {
-			expect(spy).toHaveBeenCalledOnceWith(sentinel);
-		});
-	});
-});
+      return s.take(1).observe(observer).then(() => {
+        assert.strictEqual(observer.callCount, 1)
+        assert(observer.calledWith(sentinel))
+        done()
+      })
+    })
+  })
+})

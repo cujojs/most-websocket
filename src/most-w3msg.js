@@ -1,27 +1,23 @@
-/** @license MIT License (c) copyright 2010-2015 original author or authors */
+/** @license MIT License (c) copyright 2010-2016 original author or authors */
 /** @author Brian Cavalier */
 /** @author John Hann */
 
-/* globals Promise */
+import {create, fromPromise} from 'most'
 
-var most = require('most');
-var create = most.create;
-var fromPromise = most.fromPromise;
+const defaultMessageEvent = 'message'
 
-var defaultMessageEvent = 'message';
-
-exports.fromWebSocket     = fromMessageSource;
-exports.toWebSocket       = toWebSocket;
+export {fromMessageSource as fromWebSocket}
+export {toWebSocket as toWebSocket}
 
 // EventSource is read-only. See https://developer.mozilla.org/en-US/docs/Web/API/EventSource
-exports.fromEventSource   = fromMessageSource;
-exports.fromEventSourceOn = fromMessageSourceEvent;
+export {fromMessageSource as fromEventSource}
+export {fromMessageSourceEvent as fromEventSourceOn}
 
-exports.fromMessagePort   = fromMessageSource;
-exports.toMessagePort     = toPort;
+export {fromMessageSource as fromMessagePort}
+export {toPort as toMessagePort}
 
-exports.fromWorker        = fromMessageSource;
-exports.toWorker          = toPort;
+export {fromMessageSource as fromWorker}
+export {toPort as toWorker}
 
 /**
  * Create a stream from a "source", which can be a WebSocket, EventSource,
@@ -34,8 +30,8 @@ exports.toWorker          = toPort;
  *  fails, or all consumers lose interest.
  * @returns {Stream} stream containing all the "message" events received by the source
  */
-function fromMessageSource(source, dispose) {
-	return fromMessageSourceEvent(defaultMessageEvent, source, dispose);
+function fromMessageSource (source, dispose) {
+  return fromMessageSourceEvent(defaultMessageEvent, source, dispose)
 }
 
 /**
@@ -51,10 +47,10 @@ function fromMessageSource(source, dispose) {
  *  fails, or all consumers lose interest.
  * @returns {Stream} stream containing all the "message" events received by the source
  */
-function fromMessageSourceEvent(eventName, source, dispose) {
-	return create(function(add, end, error) {
-		return pipeFromSource(source, eventName, dispose, add, end, error);
-	});
+function fromMessageSourceEvent (eventName, source, dispose) {
+  return create((add, end, error) => {
+    return pipeFromSource(source, eventName, dispose, add, end, error)
+  })
 }
 
 /**
@@ -68,19 +64,19 @@ function fromMessageSourceEvent(eventName, source, dispose) {
  *  before the WebSocket closes, the returned promise will fulfill if the stream
  *  ends cleanly, or will reject if the stream errors.
  */
-function toWebSocket(stream, socket) {
-	return pipeToSink(stream, initOpenable, send, socket);
+function toWebSocket (stream, socket) {
+  return pipeToSink(stream, initOpenable, send, socket)
 }
 
-function send(socket, msg) {
-	socket.send(msg);
+function send (socket, msg) {
+  socket.send(msg)
 }
 
-function initOpenable(openable) {
-	return new Promise(function(resolve, reject) {
-		openable.addEventListener('open', resolve);
-		openable.addEventListener('error', reject);
-	});
+function initOpenable (openable) {
+  return new Promise((resolve, reject) => {
+    openable.addEventListener('open', resolve)
+    openable.addEventListener('error', reject)
+  })
 }
 
 /**
@@ -93,12 +89,12 @@ function initOpenable(openable) {
  *  before the WebSocket closes, the returned promise will fulfill if the stream
  *  ends cleanly, or will reject if the stream errors.
  */
-function toPort(stream, sink) {
-	return pipeToSink(stream, Promise.resolve, postMessage, sink);
+function toPort (stream, sink) {
+  return pipeToSink(stream, Promise.resolve, postMessage, sink)
 }
 
-function postMessage(sink, msg) {
-	sink.postMessage(msg);
+function postMessage (sink, msg) {
+  sink.postMessage(msg)
 }
 
 /**
@@ -111,33 +107,34 @@ function postMessage(sink, msg) {
  * @param {function(e:Error)} error function to signal the stream has failed
  * @returns {function} function to remove event handlers and call dispose if provided
  */
-function pipeFromSource(source, eventName, dispose, add, end, error) {
-	if(typeof dispose !== 'function') {
-		dispose = noop;
-	}
+function pipeFromSource (source, eventName, dispose, add, end, error) {
+  if (typeof dispose !== 'function') {
+    dispose = noop
+  }
 
-	if('onopen' in source) {
-		source.addEventListener('open', onOpen);
-	} else {
-		onOpen();
-	}
+  if ('onopen' in source) {
+    source.addEventListener('open', onOpen)
+  } else {
+    onOpen()
+  }
 
-	function onOpen() {
-		source.addEventListener('close', end);
-		source.addEventListener('error', error);
-		source.addEventListener(eventName, add);
-	}
+  function onOpen () {
+    source.addEventListener('close', end)
+    source.addEventListener('error', error)
+    source.addEventListener(eventName, add)
+  }
 
-	return function() {
-		if('onopen' in source) {
-			source.removeEventListener('open', add);
-		}
+  return () => {
+    if ('onopen' in source) {
+      source.removeEventListener('open', add)
+    }
 
-		source.removeEventListener('close', end);
-		source.removeEventListener('error', error);
-		source.removeEventListener(eventName, add);
-		return dispose();
-	};
+    source.removeEventListener('close', end)
+    source.removeEventListener('error', error)
+    source.removeEventListener(eventName, add)
+
+    return dispose()
+  }
 }
 
 /**
@@ -151,22 +148,17 @@ function pipeFromSource(source, eventName, dispose, add, end, error) {
  * @returns {Promise} promise that fulfills once the stream ends (ie all events have been sent
  *  to sink), or rejects when stream or sink fails.
  */
-function pipeToSink(stream, init, send, sink) {
-	return init(sink).then(function() {
-		return doSendMessage(stream, send, sink);
-	});
+function pipeToSink (stream, init, send, sink) {
+  return init(sink).then(() => doSendMessage(stream, send, sink))
 }
 
-function doSendMessage(stream, send, sink) {
-	var endSignal = fromPromise(new Promise(function(resolve, reject) {
-		sink.addEventListener('close', resolve);
-		sink.addEventListener('error', reject);
-	}));
+function doSendMessage (stream, send, sink) {
+  const endSignal = fromPromise(new Promise((resolve, reject) => {
+    sink.addEventListener('close', resolve)
+    sink.addEventListener('error', reject)
+  }))
 
-	return stream.takeUntil(endSignal).forEach(function (x) {
-		send(sink, x);
-	});
+  return stream.takeUntil(endSignal).forEach(x => send(sink, x))
 }
 
-function noop() {}
-
+function noop () {}

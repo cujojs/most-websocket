@@ -1,62 +1,63 @@
-exports.FakeEventTarget = FakeEventTarget;
-exports.FakeEventSource = FakeEventSource;
-exports.FakeWebSocket = FakeWebSocket;
-exports.FakeMessagePort = FakeMessagePort;
+/** @license MIT License (c) copyright 2016 original author or authors */
 
-function FakeEventTarget() {
-    this._events = {};
+export function FakeEventTarget () {
+  this._events = {}
 }
 
-FakeEventTarget.prototype.emit = function(e, x) {
-    var handler = this._events[e];
-    if(typeof handler !== 'function') {
-        return;
-    }
-    handler(x);
-};
+FakeEventTarget.prototype.emit = function (e, x) {
+  const handler = this._events[e]
 
-FakeEventTarget.prototype.addEventListener = function(e, handler) {
-    this._events[e] = handler;
-};
+  if (typeof handler !== 'function') {
+    return
+  }
 
-FakeEventTarget.prototype.removeEventListener = function(e, handler) {
-    if(handler !== this._events[e]) {
-        throw new Error('removed wrong handler');
-    }
-    this._events[e] = void 0;
-};
-
-function FakeEventSource() {
-    FakeEventTarget.call(this);
-    this.isOpen = true;
+  handler(x)
 }
 
-FakeEventSource.prototype = Object.create(FakeEventTarget.prototype);
-
-FakeEventSource.prototype.close = function() {
-    if(!this.isOpen) {
-        throw new Error('closed more than once');
-    }
-    this.isOpen = false;
-    this.emit('close', void 0);
-};
-
-function FakeWebSocket() {
-    FakeEventSource.call(this);
+FakeEventTarget.prototype.addEventListener = function (e, handler) {
+  this._events[e] = handler
 }
 
-FakeWebSocket.prototype = Object.create(FakeEventSource.prototype);
+FakeEventTarget.prototype.removeEventListener = function (e, handler) {
+  if (handler !== this._events[e]) {
+    throw new Error('removed wrong handler')
+  }
 
-FakeWebSocket.prototype.send = function(x) {
-    this.emit('message', x);
-};
-
-function FakeMessagePort() {
-    FakeEventTarget.call(this);
+  this._events[e] = void 0
 }
 
-FakeMessagePort.prototype = Object.create(FakeEventTarget.prototype);
+export function FakeEventSource () {
+  FakeEventTarget.call(this)
+  this.isOpen = true
+}
 
-FakeMessagePort.prototype.postMessage = function(x) {
-    this.emit('message', x);
-};
+FakeEventSource.prototype = Object.create(FakeEventTarget.prototype)
+
+FakeEventSource.prototype.close = function () {
+  if (!this.isOpen) {
+    throw new Error('closed more than once')
+  }
+
+  this.isOpen = false
+  this.emit('close', void 0)
+}
+
+export function FakeWebSocket () {
+  FakeEventSource.call(this)
+}
+
+FakeWebSocket.prototype = Object.create(FakeEventSource.prototype)
+
+FakeWebSocket.prototype.send = function (x) {
+  this.emit('message', x)
+}
+
+export function FakeMessagePort () {
+  FakeEventTarget.call(this)
+}
+
+FakeMessagePort.prototype = Object.create(FakeEventTarget.prototype)
+
+FakeMessagePort.prototype.postMessage = function (x) {
+  this.emit('message', x)
+}
